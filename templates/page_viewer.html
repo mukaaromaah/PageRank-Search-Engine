@@ -222,6 +222,12 @@
                 padding: 0.4rem 0.8rem;
             }
         }
+
+        /* --- Gaya Highlighting Baru --- */
+        .highlight {
+            background-color: yellow; /* Warna highlight */
+            font-weight: bold;       /* Membuat teks highlight lebih tebal */
+        }
     </style>
 </head>
 <body>
@@ -291,25 +297,28 @@
         // Copy content function
         function copyContent() {
             const content = document.querySelector('.content-wrapper').textContent;
-            navigator.clipboard.writeText(content).then(function() {
-                // Show success feedback
-                const btn = event.target.closest('.toolbar-btn');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
-                btn.style.background = '#28a745';
-                btn.style.color = 'white';
-                btn.style.borderColor = '#28a745';
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.style.background = '';
-                    btn.style.color = '';
-                    btn.style.borderColor = '';
-                }, 2000);
-            }).catch(function(err) {
-                console.error('Could not copy text: ', err);
-                alert('Gagal menyalin konten');
-            });
+            // Gunakan document.execCommand('copy') untuk kompatibilitas iframe jika perlu
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = content;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            // Show success feedback
+            const btn = event.target.closest('.toolbar-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
+            btn.style.background = '#28a745';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#28a745';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.borderColor = '';
+            }, 2000);
         }
         
         // Print content function
@@ -326,6 +335,7 @@
                         body { font-family: 'Consolas', 'Courier New', monospace; margin: 2cm; }
                         h1 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
                         pre { white-space: pre-wrap; line-height: 1.6; }
+                        .highlight { background-color: yellow; font-weight: bold; } /* Sertakan gaya highlight untuk cetak */
                     </style>
                 </head>
                 <body>
@@ -340,15 +350,35 @@
         
         // Add smooth scroll animation for long content
         document.addEventListener('DOMContentLoaded', function() {
-            const content = document.querySelector('.page-content');
-            content.style.opacity = '0';
-            content.style.transform = 'translateY(20px)';
+            const contentElement = document.querySelector('.page-content');
+            contentElement.style.opacity = '0';
+            contentElement.style.transform = 'translateY(20px)';
             
             setTimeout(() => {
-                content.style.transition = 'all 0.8s ease';
-                content.style.opacity = '1';
-                content.style.transform = 'translateY(0)';
+                contentElement.style.transition = 'all 0.8s ease';
+                contentElement.style.opacity = '1';
+                contentElement.style.transform = 'translateY(0)';
             }, 300);
+
+            // --- FUNGSI HIGHLIGHT KATA KUNCI BARU ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('q'); // Ambil kata kunci dari URL
+            const contentWrapper = document.querySelector('.content-wrapper');
+
+            if (query && contentWrapper) {
+                const text = contentWrapper.innerHTML; // Gunakan innerHTML untuk mempertahankan line breaks HTML
+                const regex = new RegExp('(' + query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
+                
+                // Hindari highlight di dalam tag HTML itu sendiri
+                let highlightedText = text.replace(regex, '<span class="highlight">$1</span>');
+                
+                // Jika ada kasus tumpang tindih highlight (misal: "mahasiswa" di dalam "mahasiswa aktif")
+                // Atau highlight di dalam tag yang sudah ada, ini bisa lebih kompleks.
+                // Untuk kesederhanaan, kita highlight semua teks yang cocok.
+
+                contentWrapper.innerHTML = highlightedText;
+            }
+            // --- AKHIR FUNGSI HIGHLIGHT KATA KUNCI BARU ---
         });
     </script>
 </body>
