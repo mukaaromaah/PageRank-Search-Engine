@@ -227,6 +227,9 @@
         .highlight {
             background-color: yellow; /* Warna highlight */
             font-weight: bold;       /* Membuat teks highlight lebih tebal */
+            padding: 1px 3px;        /* Sedikit padding agar highlight terlihat jelas */
+            border-radius: 3px;      /* Sudut sedikit membulat */
+            box-shadow: 0 0 5px rgba(255, 255, 0, 0.7); /* Efek bayangan */
         }
     </style>
 </head>
@@ -297,7 +300,7 @@
         // Copy content function
         function copyContent() {
             const content = document.querySelector('.content-wrapper').textContent;
-            // Gunakan document.execCommand('copy') untuk kompatibilitas iframe jika perlu
+            // Gunakan document.execCommand('copy') untuk kompatibilitas lebih baik (terutama di iframe)
             const tempTextArea = document.createElement('textarea');
             tempTextArea.value = content;
             document.body.appendChild(tempTextArea);
@@ -360,25 +363,70 @@
                 contentElement.style.transform = 'translateY(0)';
             }, 300);
 
-            // --- FUNGSI HIGHLIGHT KATA KUNCI BARU ---
+            // --- FUNGSI HIGHLIGHT KATA KUNCI BARU DAN LEBIH ROBUST ---
             const urlParams = new URLSearchParams(window.location.search);
             const query = urlParams.get('q'); // Ambil kata kunci dari URL
             const contentWrapper = document.querySelector('.content-wrapper');
 
-            if (query && contentWrapper) {
-                const text = contentWrapper.innerHTML; // Gunakan innerHTML untuk mempertahankan line breaks HTML
-                const regex = new RegExp('(' + query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
-                
-                // Hindari highlight di dalam tag HTML itu sendiri
-                let highlightedText = text.replace(regex, '<span class="highlight">$1</span>');
-                
-                // Jika ada kasus tumpang tindih highlight (misal: "mahasiswa" di dalam "mahasiswa aktif")
-                // Atau highlight di dalam tag yang sudah ada, ini bisa lebih kompleks.
-                // Untuk kesederhanaan, kita highlight semua teks yang cocok.
-
-                contentWrapper.innerHTML = highlightedText;
+            console.log("Highlighting initiated. Query:", query); // DEBUG: Log query
+            if (!contentWrapper) {
+                console.error("Content wrapper not found."); // DEBUG: Log error jika elemen tidak ditemukan
+                return;
             }
-            // --- AKHIR FUNGSI HIGHLIGHT KATA KUNCI BARU ---
+
+            if (query && query.trim() !== '') {
+                // Escape special characters in the query for regex
+                const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                const regex = new RegExp(escapedQuery, 'gi'); // Case-insensitive, global search
+
+                // Fungsi rekursif untuk mencari dan highlight teks di text nodes
+                function highlightTextNodes(element, regex, className) {
+                    element.childNodes.forEach(node => {
+                        if (node.nodeType === Node.TEXT_NODE) { // Hanya proses node teks
+                            const text = node.nodeValue;
+                            if (regex.test(text)) {
+                                const fragment = document.createDocumentFragment();
+                                let lastIndex = 0;
+                                let match;
+                                while ((match = regex.exec(text)) !== null) {
+                                    if (match.index > lastIndex) {
+                                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                                    }
+                                    const span = document.createElement('span');
+                                    span.className = className;
+                                    span.textContent = match[0]; // Gunakan textContent untuk menghindari injeksi HTML
+                                    fragment.appendChild(span);
+                                    lastIndex = regex.lastIndex;
+                                }
+                                if (lastIndex < text.length) {
+                                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                                }
+                                element.replaceChild(fragment, node);
+                            }
+                        } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
+                            // Rekursif untuk elemen anak, kecuali script/style tags
+                            highlightTextNodes(node, regex, className);
+                        }
+                    });
+                }
+
+                highlightTextNodes(contentWrapper, regex, 'highlight');
+
+                // Optional: Scroll ke instance highlight pertama
+                const firstHighlight = document.querySelector('.highlight');
+                if (firstHighlight) {
+                    const elementRect = firstHighlight.getBoundingClientRect();
+                    const absoluteElementTop = elementRect.top + window.pageYOffset;
+                    const offset = -100; // Sesuaikan offset ini sesuai kebutuhan
+                    window.scrollTo({
+                        top: absoluteElementTop + offset,
+                        behavior: 'smooth'
+                    });
+                }
+            } else {
+                console.log("Tidak ada kata kunci untuk di-highlight atau kata kunci kosong."); // DEBUG: Jika query kosong
+            }
+            // --- AKHIR FUNGSI HIGHLIGHT KATA KUNCI ---
         });
     </script>
 </body>
